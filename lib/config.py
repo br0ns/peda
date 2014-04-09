@@ -21,7 +21,7 @@ OPTIONS = {
     "pattern"   : (1, "pattern type, 0 = basic, 1 = extended, 2 = maximum"),
     "p_charset" : ("", "custom charset for pattern_create"),
     "indent"    : (4, "number of ident spaces for output python payload, e.g: 0|4|8"),
-    "ansicolor" : ("on", "enable/disable colorized output, e.g: on|off"),    
+    "ansicolor" : ("on", "enable/disable colorized output, e.g: on|off"),
     "pagesize"  : (25, "number of lines to display per page, 0 = disable paging"),
     "session"   : ("peda-session-#FILENAME#.txt", "target file to save peda session"),
     "tracedepth": (0, "max depth for calls/instructions tracing, 0 means no limit"),
@@ -33,6 +33,7 @@ OPTIONS = {
     "context"   : ("register,code,stack", "context display setting, e.g: register, code, stack, all"),
     "verbose"   : ("off", "show detail execution of commands, e.g: on|off"),
     "debug"     : ("off", "show detail error of peda commands, e.g: on|off"),
+    "prompt"    : ("\x1b[31m\002gdb-peda$ \001\x1b[m", "the prompt"),
     "_teefd"    : ("", "internal use only for tracelog/crashlog writing")
 }
 
