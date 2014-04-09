@@ -4313,7 +4313,7 @@ class PEDACmd(object):
         if "stack" in opt or "SIGSEGV" in status:
             self.context_stack(count)
         msg(separator(), "blue")
-        msg("Legend: %s, %s, %s, value" % (red("code"), blue("data"), green("rodata")))
+        msg("Legend: %s, %s, %s, value, %s" % (red("code"), blue("data"), green("rodata"), magenta("integer")))
 
         # display stopped reason
         if "SIG" in status:
@@ -4620,7 +4620,7 @@ class PEDACmd(object):
     lookup.options = ["address", "pointer"]
 
     # examine_mem_reference()
-    def telescope(self, *arg):
+    def telescope(self, *arg, **kwargs):
         """
         Display memory content at an address with smart dereferences
         Usage:
@@ -4629,6 +4629,8 @@ class PEDACmd(object):
         """
 
         (address, count) = normalize_argv(arg, 2)
+        recursive = kwargs.get('recursive', False)
+        depth = kwargs.get('depth', 4) or 4
 
         if self._is_running():
             sp = peda.getreg("sp")
@@ -4637,11 +4639,13 @@ class PEDACmd(object):
 
         if count is None:
             count = 8
-            if address is None:
-                address = sp
-            elif address < 0x1000:
-                count = address
-                address = sp
+
+        if address is None:
+            address = sp
+
+        if address < 0x1000:
+            count = address
+            address = sp
 
         if not address:
             return
@@ -4653,24 +4657,59 @@ class PEDACmd(object):
                     break
             return
 
-        result = []
-        for i in range(count):
-            value = address + i*step
-            if peda.is_address(value):
-                result += [peda.examine_mem_reference(value)]
-            else:
-                result += [None]
-        idx = 0
-        text = ""
-        for chain in result:
-            text += "%04d| " % (idx)
-            text += format_reference_chain(chain)
-            text += "\n"
-            idx += step
+        import math
+        offsetwidth = int(math.log((count - 1) * step, 16)) + 1
+        offsetfmt = '+%%%dx| ' % offsetwidth
+        adjust_one_level = step * 2 + 5
+        seen = set()
+        def loop (base, offset = 0, adjust = 0, level = 1):
+            text = ''
+            collapse = False
+            if level > depth:
+                return ''
+            for i in range(count):
+                addr = base + i * step
+                if peda.is_address(addr):
+                    chain = peda.examine_mem_reference(addr)
+                else:
+                    chain = None
+                if collapse and addr in seen:
+                    continue
+                text += ' ' * adjust
+                text += offsetfmt % (i * step + offset)
+                if addr in seen:
+                    text += '...\n'
+                    collapse = True
+                    continue
+                collapse = False
+                seen.add(addr)
+                text += format_reference_chain(chain)
+                text += '\n'
+                if recursive and chain and len(chain) >= 3:
+                    for i, (v, t, vn) in enumerate(reversed(chain[1:-1])):
+                        next_adjust = adjust + adjust_one_level * (len(chain) - 2 - i)
+                        text += loop(to_int(v) + step, step, next_adjust, level + 1)
+            return text
 
-        pager(text)
+        pager(loop(address)[:-1])
 
         return
+
+    # examine_mem_reference()
+    def recursive_telescope(self, *arg):
+        """
+        Display memory content at an address with smart dereferences
+        Usage:
+            MYNAME [depth] [linecount] (analyze at current $SP)
+            MYNAME address [depth] [linecount]
+        """
+
+        (address, depth, count) = normalize_argv(arg, 3)
+        if address and address < 0x1000:
+            count = depth
+            depth = address
+            address = None
+        self.telescope(address, count, recursive = True, depth = depth)
 
     def eflags(self, *arg):
         """
@@ -5984,7 +6023,9 @@ Alias("itrace", "peda traceinst")
 Alias("jtrace", "peda traceinst j")
 Alias("stack", "peda telescope $sp")
 Alias("viewmem", "peda telescope")
+Alias("rtel", "peda recursive_telescope")
 Alias("reg", "peda xinfo register")
+Alias("ctx", "peda context")
 
 # misc gdb settings
 peda.execute("set confirm off")

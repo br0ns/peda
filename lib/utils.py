@@ -469,8 +469,7 @@ def format_address(addr, type):
 def format_value(val):
     """Format a value"""
     v = to_signed_int(val)
-    vs = to_int(val)
-    return val + magenta(' (%d, %s)' % (v, bin(vs)))
+    return val + magenta(' (%d)' % v)
 
 @memoized
 def format_reference_chain(chain):
