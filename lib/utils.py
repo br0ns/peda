@@ -19,6 +19,9 @@ import functools
 from subprocess import *
 import config
 
+# this will be set from peda.py
+bits = 32
+
 # http://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 # http://stackoverflow.com/questions/8856164/class-decorator-decorating-method-in-python
 class memoized(object):
@@ -99,7 +102,7 @@ def colorize(text, color=None, attrib=None):
     """
     # ansicolor definitions
     COLORS = {"black": "30", "red": "31", "green": "32", "yellow": "33",
-                "blue": "34", "purple": "35", "cyan": "36", "white": "37"}
+                "blue": "34", "magenta": "35", "cyan": "36", "white": "37"}
     CATTRS = {"regular": "0", "bold": "1", "underline": "4", "strike": "9",
                 "light": "1", "dark": "2", "invert": "7"}
 
@@ -134,6 +137,18 @@ def yellow(text, attrib=None):
 def blue(text, attrib=None):
     """Wrapper for colorize(text, 'blue')"""
     return colorize(text, "blue", attrib)
+
+def magenta(text, attrib=None):
+    """Wrapper for colorize(text, 'magenta')"""
+    return colorize(text, "magenta", attrib)
+
+def cyan(text, attrib=None):
+    """Wrapper for colorize(text, 'cyan')"""
+    return colorize(text, "cyan", attrib)
+
+def gray(text):
+    """Wrapper for colorize(text, 'black', 'bold')"""
+    return colorize(text, 'black', 'bold')
 
 class message(object):
     """
@@ -318,10 +333,11 @@ def to_hex(num):
     """
     Convert a number to hex format
     """
+    s = '0x%%0%dx' % (bits // 4) % abs(num)
     if num < 0:
-        return "-0x%x" % (-num)
+        return '-' + s
     else:
-        return "0x%x" % num
+        return s
 
 def to_address(num):
     """
@@ -342,6 +358,16 @@ def to_int(val):
         return int(str(val), 0)
     except:
         return None
+
+def to_signed_int(val):
+    """
+    Convert a string to signed int number
+    """
+    val = to_int(val)
+    if val is None or not 2**(bits - 1) & val:
+        return val
+    else:
+        return val - 2**bits
 
 def str2hex(str):
     """
@@ -440,6 +466,12 @@ def format_address(addr, type):
     }
     return colorize(addr, colorcodes[type])
 
+def format_value(val):
+    """Format a value"""
+    v = to_signed_int(val)
+    vs = to_int(val)
+    return val + magenta(' (%d, %s)' % (v, bin(vs)))
+
 @memoized
 def format_reference_chain(chain):
     """
@@ -453,18 +485,17 @@ def format_reference_chain(chain):
         first = 1
         for (v, t, vn) in chain:
             if t != "value":
-                text += "%s%s " % ("--> " if not first else "", format_address(v, t))
+                text += "%s%s " % ("> " if not first else "", format_address(v, t))
             else:
-                text += "%s%s " % ("--> " if not first else "", v)
+                text += "%s%s " % ("> " if not first else "", format_value(v))
             first = 0
 
         if vn:
             text += "(%s)" % vn
         else:
-            if v != "0x0":
-                s = hex2str(v)
-                if is_printable(s, "\x00"):
-                    text += "(%s)" % repr(s.split("\x00")[0])
+            s = hex2str(v).rstrip('\x00')
+            if s and is_printable(s):
+                text += "(%s)" % repr(s.split("\x00")[0])
     return text
 
 # vulnerable C functions, source: rats/flawfinder

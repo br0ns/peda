@@ -31,7 +31,7 @@ sys.path.append(os.path.dirname(PEDAFILE) + "/lib/")
 from skeleton import *
 from shellcode import *
 from utils import *
-import config
+import config, utils
 from nasm import *
 
 REGISTERS = {
@@ -463,6 +463,8 @@ class PEDA(object):
                 break
         if "64" in arch:
             bits = 64
+        # hack: format_reference_chain needs to know the word size
+        utils.bits = bits
         return (arch, bits)
 
     def intsize(self):
