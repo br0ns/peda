@@ -4667,7 +4667,7 @@ class PEDACmd(object):
             collapse = False
             if level > depth:
                 return ''
-            for i in range(count):
+            for i in range(count - 1 if level > 1 else count):
                 addr = base + i * step
                 if peda.is_address(addr):
                     chain = peda.examine_mem_reference(addr)
