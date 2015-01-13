@@ -1429,7 +1429,8 @@ class PEDA(object):
             if remote: # remote target, not yet supported
                 return maps
             else: # local target
-                out = open(mpath).read()
+                try:  out = open(mpath).read()
+                except: error_msg("could not open %s; is procfs mounted?" % mpath)
 
             matches = pattern.findall(out)
             if matches:
@@ -3855,7 +3856,7 @@ class PEDACmd(object):
         for e in entries:
             out = peda.execute_redirect("tbreak %s" % e)
             if out and "breakpoint" in out:
-                peda.execute("run")
+                peda.execute("run %s" % ' '.join(arg))
                 started = 1
                 break
 
@@ -4395,7 +4396,7 @@ class PEDACmd(object):
                     data += eval("%s" % input)
 
         if to_int(data) is not None:
-            data = hex2str(to_int(data), peda.instsize())
+            data = hex2str(to_int(data), peda.intsize())
         data = data.replace("\\\\", "\\")
         if end_address:
             data = data*((end_address-address+1)/len(data))
