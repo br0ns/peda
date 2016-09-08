@@ -6,6 +6,10 @@
 #       License: see LICENSE file for details
 #
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 from utils import *
 import config
@@ -27,13 +31,17 @@ class Nasm(object):
         Returns:
             - bin code (raw bytes)
         """
+        if not os.path.exists(config.NASM):
+            error_msg("%s binary not found, please install NASM for asm/rop functions" % config.NASM)
+            raise UserWarning("missing requirement")
+
         asmcode = asmcode.strip('"').strip("'")
         asmcode = asmcode.replace(";", "\n")
         asmcode = ("BITS %d\n" % mode) + asmcode
-        asmcode = asmcode.decode('string_escape')
+        asmcode = decode_string_escape(asmcode)
         asmcode = re.sub("PTR|ptr|ds:|DS:", "", asmcode)
         infd = tmpfile()
-        outfd = tmpfile()
+        outfd = tmpfile(is_binary_file=True)
         infd.write(asmcode)
         infd.flush()
         execute_external_command("%s -f bin -o %s %s" % (config.NASM, outfd.name, infd.name))
@@ -58,7 +66,7 @@ class Nasm(object):
             - ASM code (String)
         """
         out = execute_external_command("%s -b %d -" % (config.NDISASM, mode), buf)
-        return out        
+        return out
 
     @staticmethod
     def format_shellcode(buf, mode=32):
@@ -72,7 +80,7 @@ class Nasm(object):
         def nasm2shellcode(asmcode):
             if not asmcode:
                 return ""
-                
+
             shellcode = []
             pattern = re.compile("([0-9A-F]{8})\s*([^\s]*)\s*(.*)")
 
@@ -81,7 +89,7 @@ class Nasm(object):
                 m = pattern.match(line)
                 if m:
                     (addr, bytes, code) = m.groups()
-                    sc = '"%s"' % to_hexstr(bytes.decode('hex'))
+                    sc = '"%s"' % to_hexstr(codecs.decode(bytes, 'hex'))
                     shellcode += [(sc, "0x"+addr, code)]
 
             maxlen = max([len(x[0]) for x in shellcode])
