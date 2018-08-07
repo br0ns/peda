@@ -1233,7 +1233,7 @@ class PEDA(object):
         Evaluate target address of an instruction, used for jumpto decision
 
         Args:
-            - inst: AMS instruction text (String)
+            - inst: ASM instruction text (String)
 
         Returns:
             - target address (Int)
@@ -1246,10 +1246,11 @@ class PEDA(object):
         p = re.compile(".*?:\s*[^ ]*\s*(.* PTR ).*(0x[^ ]*)")
         m = p.search(inst)
         if not m:
-            p = re.compile(".*?:\s.*(0x[^ ]*)")
+            p = re.compile(".*?:\s.*\s(0x[^ ]*|\w+)")
             m = p.search(inst)
             if m:
                 target = m.group(1)
+                target = self.parse_and_eval(target)
             else:
                 target = None
         else:
@@ -2261,7 +2262,7 @@ class PEDA(object):
         if not out:
             return {}
 
-        p = re.compile("\s*(0x[^-]*)->(0x[^ ]*) at (.*):\s*([^ ]*)\s*(.*)")
+        p = re.compile("\s*(0x[^-]*)->(0x[^ ]*) at (0x[^:]*):\s*([^ ]*)\s*(.*)")
         matches = p.findall(out)
 
         for (start, end, offset, hname, attr) in matches:
@@ -4391,6 +4392,10 @@ class PEDACmd(object):
         if not self._is_running():
             return
 
+        clearscr = config.Option.get("clearscr")
+        if clearscr == "on":
+            clearscreen()
+
         status = peda.get_status()
         # display registers
         if "reg" in opt or "register" in opt:
@@ -4745,6 +4750,8 @@ class PEDACmd(object):
 
         step = peda.intsize()
         if not peda.is_address(address): # cannot determine address
+            msg("Invalid $SP address: 0x%x" % address, "red")
+            return
             for i in range(count):
                 if not peda.execute("x/%sx 0x%x" % ("g" if step == 8 else "w", address + i*step)):
                     break
